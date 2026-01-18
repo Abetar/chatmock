@@ -1,65 +1,259 @@
-import Image from "next/image";
+// app/page.tsx
+"use client";
 
-export default function Home() {
+import { useMemo, useRef, useState } from "react";
+import { sampleMessages } from "@/lib/sample";
+import { PlatformToggle } from "@/components/PlatformToggle";
+import { ChatPreview } from "@/components/ChatPreview";
+import { MessageComposer } from "@/components/MessageComposer";
+import { MobileTabs } from "@/components/MobileTabs";
+import type { ChatMessage, Platform, Theme } from "@/lib/types";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { toPng } from "html-to-image";
+
+export default function Page() {
+  const [platform, setPlatform] = useState<Platform>("whatsapp");
+  const [contactName, setContactName] = useState("Benito Camelo");
+  const [messages, setMessages] = useState<ChatMessage[]>(sampleMessages);
+  const [tab, setTab] = useState<"edit" | "preview">("edit");
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  // ✅ ref al contenedor que vamos a exportar
+  const previewRef = useRef<HTMLDivElement | null>(null);
+
+  const preview = useMemo(
+    () => (
+      <ChatPreview
+        platform={platform}
+        theme={theme}
+        contactName={contactName}
+        messages={messages}
+      />
+    ),
+    [platform, theme, contactName, messages]
+  );
+
+  // ✅ Export PNG
+  async function exportPng() {
+    if (!previewRef.current) return;
+
+    // Espera un frame para evitar capturas a medio render
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+    const node = previewRef.current;
+
+    const filename = `chat-${platform}-${theme}-${new Date()
+      .toISOString()
+      .slice(0, 10)}.png`;
+
+    const dataUrl = await toPng(node, {
+      cacheBust: true,
+      pixelRatio: 2, // nitidez
+      backgroundColor: theme === "dark" ? "#070b10" : "#f3f4f6",
+      // Si luego metes ads, puedes marcarlos con data-noexport
+      filter: (domNode) => {
+        const el = domNode as HTMLElement;
+        return el?.dataset?.noexport !== "true";
+      },
+    });
+
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+  }
+
+  async function exportFullConversationPng() {
+    if (!previewRef.current) return;
+
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+    // 1) Clonar el preview
+    const clone = previewRef.current.cloneNode(true) as HTMLDivElement;
+
+    // 2) Montarlo fuera de pantalla para que html-to-image lo “renderice”
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "fixed";
+    wrapper.style.left = "-10000px";
+    wrapper.style.top = "0";
+    wrapper.style.zIndex = "999999";
+    wrapper.style.background = theme === "dark" ? "#070b10" : "#f3f4f6";
+    wrapper.style.padding = "24px";
+
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    try {
+      // 3) Expandir viewport (quitar alto fijo)
+      const viewport = clone.querySelector(
+        "[data-chat-viewport]"
+      ) as HTMLElement | null;
+      if (viewport) {
+        viewport.style.height = "auto";
+        viewport.style.maxHeight = "none";
+      }
+
+      // 4) Expandir scroller (quitar overflow)
+      const scroller = clone.querySelector(
+        "[data-chat-scroll]"
+      ) as HTMLElement | null;
+      if (scroller) {
+        scroller.style.overflow = "visible";
+        scroller.style.height = "auto";
+        scroller.style.maxHeight = "none";
+      }
+
+      // 5) Mostrar watermark grande (BETA)
+      const big = clone.querySelector(
+        "[data-chat-watermark-big]"
+      ) as HTMLElement | null;
+      if (big) {
+        big.classList.remove("hidden");
+        big.classList.add("flex");
+      }
+
+      // (Opcional) refuerza el watermark pequeño también
+      const small = clone.querySelector(
+        "[data-chat-watermark-small]"
+      ) as HTMLElement | null;
+      if (small) {
+        small.style.opacity = "0.95";
+        small.style.transform = "translateX(-50%)";
+      }
+
+      // 6) Exportar
+      const filename = `chat-full-${platform}-${theme}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.png`;
+
+      const dataUrl = await toPng(clone, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: theme === "dark" ? "#070b10" : "#f3f4f6",
+        filter: (domNode) => {
+          const el = domNode as HTMLElement;
+          return el?.dataset?.noexport !== "true";
+        },
+      });
+
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      // 7) Limpieza
+      document.body.removeChild(wrapper);
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-screen bg-[#070b10] text-white">
+      <MobileTabs value={tab} onChange={setTab} />
+
+      <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
+        <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
+          {/* Editor */}
+          <section
+            className={`md:w-[420px] ${
+              tab === "preview" ? "hidden md:block" : ""
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-5 md:p-6 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-lg font-semibold leading-tight">
+                    Chat Generator
+                  </h1>
+                  <p className="text-sm text-white/60">
+                    WhatsApp / Messenger (simulado)
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <ThemeToggle value={theme} onChange={setTheme} />
+                  <PlatformToggle value={platform} onChange={setPlatform} />
+                </div>
+              </div>
+
+              <label className="block">
+                <span className="text-xs text-white/60">
+                  Nombre del contacto
+                </span>
+                <input
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:border-white/25"
+                  placeholder="Ej. Benito Camelo"
+                />
+              </label>
+
+              <MessageComposer
+                onAdd={(msg) => setMessages((prev) => [...prev, msg])}
+              />
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMessages([])}
+                  className="flex-1 rounded-2xl py-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
+                >
+                  Limpiar
+                </button>
+                <button
+                  onClick={() => setMessages(sampleMessages)}
+                  className="flex-1 rounded-2xl py-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
+                >
+                  Demo
+                </button>
+              </div>
+
+              {/* ✅ Export button */}
+              <button
+                onClick={exportPng}
+                className="w-full rounded-2xl py-3 bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold"
+              >
+                Descargar PNG (vista)
+              </button>
+
+              <button
+                onClick={exportFullConversationPng}
+                className="w-full rounded-2xl py-3 bg-white/5 border border-white/10 text-white/85 hover:bg-white/10"
+              >
+                Exportar conversación completa (BETA)
+              </button>
+
+              <p className="text-[11px] text-white/45 leading-snug">
+                BETA: export completo incluye watermark grande para evitar mal
+                uso.
+              </p>
+
+              {/* Donación (Ko-fi placeholder) */}
+              <a
+                href="https://ko-fi.com/abrahamgomez96"
+                target="_blank"
+                rel="noreferrer"
+                className="block text-center rounded-2xl py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/15"
+              >
+                ☕ Apóyame en Ko-fi
+              </a>
+
+              <p className="text-[11px] text-white/45 leading-snug">
+                Nota: Evitamos logos/marcas oficiales. Esto es un mock para
+                contenido.
+              </p>
+            </div>
+          </section>
+
+          {/* Preview */}
+          <section
+            className={`flex-1 ${tab === "edit" ? "hidden md:block" : ""}`}
           >
-            Documentation
-          </a>
+            {/* ✅ Esto es lo que se exporta */}
+            <div ref={previewRef} className="w-fit">
+              {preview}
+            </div>
+          </section>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
