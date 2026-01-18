@@ -62,6 +62,7 @@ export default function Page() {
   }
 
   // ✅ Export PNG (conversación completa - BETA)
+  // ✅ Export PNG (conversación completa - BETA)
   async function exportFullConversationPng() {
     if (!previewRef.current) return;
 
@@ -81,6 +82,7 @@ export default function Page() {
     document.body.appendChild(wrapper);
 
     try {
+      // Expandir viewport (quitar alto fijo)
       const viewport = clone.querySelector(
         "[data-chat-viewport]"
       ) as HTMLElement | null;
@@ -89,6 +91,7 @@ export default function Page() {
         viewport.style.maxHeight = "none";
       }
 
+      // Expandir scroller (quitar overflow)
       const scroller = clone.querySelector(
         "[data-chat-scroll]"
       ) as HTMLElement | null;
@@ -96,22 +99,6 @@ export default function Page() {
         scroller.style.overflow = "visible";
         scroller.style.height = "auto";
         scroller.style.maxHeight = "none";
-      }
-
-      const big = clone.querySelector(
-        "[data-chat-watermark-big]"
-      ) as HTMLElement | null;
-      if (big) {
-        big.classList.remove("hidden");
-        big.classList.add("flex");
-      }
-
-      const small = clone.querySelector(
-        "[data-chat-watermark-small]"
-      ) as HTMLElement | null;
-      if (small) {
-        small.style.opacity = "0.95";
-        small.style.transform = "translateX(-50%)";
       }
 
       const filename = `chat-full-${platform}-${theme}-${new Date()
@@ -215,8 +202,7 @@ export default function Page() {
                 </button>
 
                 <p className="text-[11px] text-white/45 leading-snug">
-                  BETA: export completo incluye watermark grande para evitar mal
-                  uso.
+                  BETA: export completo genera una imagen larga sin scroll.
                 </p>
 
                 <a
@@ -236,9 +222,7 @@ export default function Page() {
             </section>
 
             {/* Preview */}
-            <section
-              className={cnPreviewSection(tab)}
-            >
+            <section className={cnPreviewSection(tab)}>
               <div ref={previewRef} className="w-fit md:mx-auto">
                 {preview}
               </div>

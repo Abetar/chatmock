@@ -119,7 +119,7 @@ export function ChatPreview({
           </div>
         </div>
 
-        {/* Chat area (viewport fijo en UI normal, pero export full lo vuelve auto) */}
+        {/* Chat area */}
         <div
           data-chat-viewport
           className={cn(
@@ -148,25 +148,6 @@ export function ChatPreview({
               }}
             />
           )}
-
-          {/* ✅ Watermark grande (oculto normal; visible SOLO en export full) */}
-          <div
-            data-chat-watermark-big
-            className="hidden pointer-events-none absolute inset-0 z-20 items-center justify-center"
-          >
-            <div
-              className={cn(
-                "select-none font-black tracking-widest uppercase",
-                "text-[28px] sm:text-[34px] px-6 py-4 rounded-2xl",
-                isDark
-                  ? "text-white/35 bg-black/20 border border-white/15"
-                  : "text-black/30 bg-white/40 border border-black/10"
-              )}
-              style={{ transform: "rotate(-18deg)" }}
-            >
-              SIMULATED CHAT · BETA
-            </div>
-          </div>
 
           {/* Messages */}
           <div
@@ -275,19 +256,6 @@ export function ChatPreview({
                 <Mic className="h-5 w-5 text-white" />
               </div>
             </div>
-          </div>
-
-          {/* Watermark (normal) */}
-          <div
-            data-chat-watermark-small
-            className={cn(
-              "absolute bottom-16 left-1/2 -translate-x-1/2 text-[10px] px-2 py-1 rounded-full border",
-              isDark
-                ? "text-white/35 bg-black/20 border-white/10"
-                : "text-neutral-600 bg-white/70 border-neutral-200"
-            )}
-          >
-            Simulated chat · Not real
           </div>
         </div>
       </div>
