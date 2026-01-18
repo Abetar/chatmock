@@ -33,11 +33,10 @@ export default function Page() {
     [platform, theme, contactName, messages]
   );
 
-  // ✅ Export PNG
+  // ✅ Export PNG (vista)
   async function exportPng() {
     if (!previewRef.current) return;
 
-    // Espera un frame para evitar capturas a medio render
     await new Promise((r) => requestAnimationFrame(() => r(null)));
 
     const node = previewRef.current;
@@ -48,9 +47,8 @@ export default function Page() {
 
     const dataUrl = await toPng(node, {
       cacheBust: true,
-      pixelRatio: 2, // nitidez
+      pixelRatio: 2,
       backgroundColor: theme === "dark" ? "#070b10" : "#f3f4f6",
-      // Si luego metes ads, puedes marcarlos con data-noexport
       filter: (domNode) => {
         const el = domNode as HTMLElement;
         return el?.dataset?.noexport !== "true";
@@ -63,15 +61,14 @@ export default function Page() {
     link.click();
   }
 
+  // ✅ Export PNG (conversación completa - BETA)
   async function exportFullConversationPng() {
     if (!previewRef.current) return;
 
     await new Promise((r) => requestAnimationFrame(() => r(null)));
 
-    // 1) Clonar el preview
     const clone = previewRef.current.cloneNode(true) as HTMLDivElement;
 
-    // 2) Montarlo fuera de pantalla para que html-to-image lo “renderice”
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
     wrapper.style.left = "-10000px";
@@ -84,7 +81,6 @@ export default function Page() {
     document.body.appendChild(wrapper);
 
     try {
-      // 3) Expandir viewport (quitar alto fijo)
       const viewport = clone.querySelector(
         "[data-chat-viewport]"
       ) as HTMLElement | null;
@@ -93,7 +89,6 @@ export default function Page() {
         viewport.style.maxHeight = "none";
       }
 
-      // 4) Expandir scroller (quitar overflow)
       const scroller = clone.querySelector(
         "[data-chat-scroll]"
       ) as HTMLElement | null;
@@ -103,7 +98,6 @@ export default function Page() {
         scroller.style.maxHeight = "none";
       }
 
-      // 5) Mostrar watermark grande (BETA)
       const big = clone.querySelector(
         "[data-chat-watermark-big]"
       ) as HTMLElement | null;
@@ -112,7 +106,6 @@ export default function Page() {
         big.classList.add("flex");
       }
 
-      // (Opcional) refuerza el watermark pequeño también
       const small = clone.querySelector(
         "[data-chat-watermark-small]"
       ) as HTMLElement | null;
@@ -121,7 +114,6 @@ export default function Page() {
         small.style.transform = "translateX(-50%)";
       }
 
-      // 6) Exportar
       const filename = `chat-full-${platform}-${theme}-${new Date()
         .toISOString()
         .slice(0, 10)}.png`;
@@ -141,7 +133,6 @@ export default function Page() {
       link.href = dataUrl;
       link.click();
     } finally {
-      // 7) Limpieza
       document.body.removeChild(wrapper);
     }
   }
@@ -151,109 +142,115 @@ export default function Page() {
       <MobileTabs value={tab} onChange={setTab} />
 
       <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
-        <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
-          {/* Editor */}
-          <section
-            className={`md:w-[420px] ${
-              tab === "preview" ? "hidden md:block" : ""
-            }`}
-          >
-            <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-5 md:p-6 space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h1 className="text-lg font-semibold leading-tight">
-                    Chat Generator
-                  </h1>
-                  <p className="text-sm text-white/60">
-                    WhatsApp / Messenger (simulado)
-                  </p>
+        {/* ✅ CENTRADO GLOBAL DEL BLOQUE */}
+        <div className="flex justify-center">
+          {/* ✅ limita ancho real para que se vea balanceado */}
+          <div className="w-full max-w-[980px] flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
+            {/* Editor */}
+            <section
+              className={`md:w-[420px] ${
+                tab === "preview" ? "hidden md:block" : ""
+              }`}
+            >
+              <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-5 md:p-6 space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h1 className="text-lg font-semibold leading-tight">
+                      Chat Generator
+                    </h1>
+                    <p className="text-sm text-white/60">
+                      WhatsApp / Messenger (simulado)
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <ThemeToggle value={theme} onChange={setTheme} />
+                    <PlatformToggle value={platform} onChange={setPlatform} />
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <ThemeToggle value={theme} onChange={setTheme} />
-                  <PlatformToggle value={platform} onChange={setPlatform} />
-                </div>
-              </div>
+                <label className="block">
+                  <span className="text-xs text-white/60">
+                    Nombre del contacto
+                  </span>
+                  <input
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    className="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:border-white/25"
+                    placeholder="Ej. Benito Camelo"
+                  />
+                </label>
 
-              <label className="block">
-                <span className="text-xs text-white/60">
-                  Nombre del contacto
-                </span>
-                <input
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  className="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:border-white/25"
-                  placeholder="Ej. Benito Camelo"
+                <MessageComposer
+                  onAdd={(msg) => setMessages((prev) => [...prev, msg])}
                 />
-              </label>
 
-              <MessageComposer
-                onAdd={(msg) => setMessages((prev) => [...prev, msg])}
-              />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMessages([])}
+                    className="flex-1 rounded-2xl py-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
+                  >
+                    Limpiar
+                  </button>
+                  <button
+                    onClick={() => setMessages(sampleMessages)}
+                    className="flex-1 rounded-2xl py-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
+                  >
+                    Demo
+                  </button>
+                </div>
 
-              <div className="flex gap-2">
                 <button
-                  onClick={() => setMessages([])}
-                  className="flex-1 rounded-2xl py-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
+                  onClick={exportPng}
+                  className="w-full rounded-2xl py-3 bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold"
                 >
-                  Limpiar
+                  Descargar PNG (vista)
                 </button>
+
                 <button
-                  onClick={() => setMessages(sampleMessages)}
-                  className="flex-1 rounded-2xl py-3 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
+                  onClick={exportFullConversationPng}
+                  className="w-full rounded-2xl py-3 bg-white/5 border border-white/10 text-white/85 hover:bg-white/10"
                 >
-                  Demo
+                  Exportar conversación completa (BETA)
                 </button>
+
+                <p className="text-[11px] text-white/45 leading-snug">
+                  BETA: export completo incluye watermark grande para evitar mal
+                  uso.
+                </p>
+
+                <a
+                  href="https://ko-fi.com/abrahamgomez96"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block text-center rounded-2xl py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/15"
+                >
+                  ☕ Apóyame en Ko-fi
+                </a>
+
+                <p className="text-[11px] text-white/45 leading-snug">
+                  Nota: Evitamos logos/marcas oficiales. Esto es un mock para
+                  contenido.
+                </p>
               </div>
+            </section>
 
-              {/* ✅ Export button */}
-              <button
-                onClick={exportPng}
-                className="w-full rounded-2xl py-3 bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold"
-              >
-                Descargar PNG (vista)
-              </button>
-
-              <button
-                onClick={exportFullConversationPng}
-                className="w-full rounded-2xl py-3 bg-white/5 border border-white/10 text-white/85 hover:bg-white/10"
-              >
-                Exportar conversación completa (BETA)
-              </button>
-
-              <p className="text-[11px] text-white/45 leading-snug">
-                BETA: export completo incluye watermark grande para evitar mal
-                uso.
-              </p>
-
-              {/* Donación (Ko-fi placeholder) */}
-              <a
-                href="https://ko-fi.com/abrahamgomez96"
-                target="_blank"
-                rel="noreferrer"
-                className="block text-center rounded-2xl py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/15"
-              >
-                ☕ Apóyame en Ko-fi
-              </a>
-
-              <p className="text-[11px] text-white/45 leading-snug">
-                Nota: Evitamos logos/marcas oficiales. Esto es un mock para
-                contenido.
-              </p>
-            </div>
-          </section>
-
-          {/* Preview */}
-          <section
-            className={`flex-1 ${tab === "edit" ? "hidden md:block" : ""}`}
-          >
-            {/* ✅ Esto es lo que se exporta */}
-            <div ref={previewRef} className="w-fit">
-              {preview}
-            </div>
-          </section>
+            {/* Preview */}
+            <section
+              className={cnPreviewSection(tab)}
+            >
+              <div ref={previewRef} className="w-fit md:mx-auto">
+                {preview}
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </main>
   );
+}
+
+// helper simple para mantener limpio el className
+function cnPreviewSection(tab: "edit" | "preview") {
+  return `flex-1 ${tab === "edit" ? "hidden md:flex" : ""} md:justify-center`;
 }
