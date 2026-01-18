@@ -257,6 +257,18 @@ export function ChatPreview({
               </div>
             </div>
           </div>
+
+          {/* ✅ Disclaimer final (chat ficticio) */}
+          <div
+            className={cn(
+              "pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] px-2 py-1 rounded-full border",
+              isDark
+                ? "text-white/35 bg-black/30 border-white/10"
+                : "text-neutral-600 bg-white/80 border-neutral-200"
+            )}
+          >
+            Simulated chat · Not real
+          </div>
         </div>
       </div>
     </div>
