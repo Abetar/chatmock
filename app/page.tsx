@@ -34,31 +34,52 @@ export default function Page() {
   );
 
   // ✅ Export PNG (vista)
+  // ✅ Export PNG (vista) - FIX: exportar desde clon off-screen para evitar recortes
   async function exportPng() {
     if (!previewRef.current) return;
 
+    // Espera a que carguen fuentes (evita glitches)
+    await (document as any).fonts?.ready;
     await new Promise((r) => requestAnimationFrame(() => r(null)));
 
-    const node = previewRef.current;
+    // 1) Clonar el preview
+    const clone = previewRef.current.cloneNode(true) as HTMLDivElement;
 
-    const filename = `chat-${platform}-${theme}-${new Date()
-      .toISOString()
-      .slice(0, 10)}.png`;
+    // 2) Montarlo fuera de pantalla para que html-to-image calcule bien tamaños
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "fixed";
+    wrapper.style.left = "-10000px";
+    wrapper.style.top = "0";
+    wrapper.style.zIndex = "999999";
+    wrapper.style.background = theme === "dark" ? "#070b10" : "#f3f4f6";
+    wrapper.style.padding = "24px";
+    wrapper.style.width = "max-content"; // importante: que no estire raro
 
-    const dataUrl = await toPng(node, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: theme === "dark" ? "#070b10" : "#f3f4f6",
-      filter: (domNode) => {
-        const el = domNode as HTMLElement;
-        return el?.dataset?.noexport !== "true";
-      },
-    });
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
 
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = dataUrl;
-    link.click();
+    try {
+      const filename = `chat-${platform}-${theme}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.png`;
+
+      const dataUrl = await toPng(clone, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: theme === "dark" ? "#070b10" : "#f3f4f6",
+        filter: (domNode) => {
+          const el = domNode as HTMLElement;
+          return el?.dataset?.noexport !== "true";
+        },
+      });
+
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      document.body.removeChild(wrapper);
+    }
   }
 
   // ✅ Export PNG (conversación completa - BETA)
