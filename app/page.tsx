@@ -168,7 +168,9 @@ export default function Page() {
           <div className="w-full max-w-[980px] flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
             {/* Editor */}
             <section
-              className={`md:w-[420px] ${tab === "preview" ? "hidden md:block" : ""}`}
+              className={`md:w-[420px] ${
+                tab === "preview" ? "hidden md:block" : ""
+              }`}
             >
               <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-5 md:p-6 space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -189,7 +191,9 @@ export default function Page() {
                 </div>
 
                 <label className="block">
-                  <span className="text-xs text-white/60">Nombre del contacto</span>
+                  <span className="text-xs text-white/60">
+                    Nombre del contacto
+                  </span>
                   <input
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
@@ -203,7 +207,9 @@ export default function Page() {
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium">Fondo de pantalla</div>
+                        <div className="text-sm font-medium">
+                          Fondo de pantalla
+                        </div>
                         <div className="text-xs text-white/55">
                           Solo afecta WhatsApp (no Messenger)
                         </div>
@@ -224,7 +230,9 @@ export default function Page() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => onWallpaperFile(e.target.files?.[0] ?? null)}
+                        onChange={(e) =>
+                          onWallpaperFile(e.target.files?.[0] ?? null)
+                        }
                         className="block w-full text-xs text-white/70 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-500/90 file:px-3 file:py-2 file:text-black file:font-semibold hover:file:bg-emerald-500"
                       />
                     </label>
@@ -247,7 +255,9 @@ export default function Page() {
                   </div>
                 ) : null}
 
-                <MessageComposer onAdd={(msg) => setMessages((prev) => [...prev, msg])} />
+                <MessageComposer
+                  onAdd={(msg) => setMessages((prev) => [...prev, msg])}
+                />
 
                 <div className="flex gap-2">
                   <button
@@ -292,15 +302,18 @@ export default function Page() {
                 </a>
 
                 <p className="text-[11px] text-white/45 leading-snug">
-                  Nota: Evitamos logos/marcas oficiales. Esto es un mock para contenido.
+                  Nota: Evitamos logos/marcas oficiales. Esto es un mock para
+                  contenido.
                 </p>
               </div>
             </section>
 
             {/* Preview */}
             <section className={cnPreviewSection(tab)}>
-              <div ref={previewRef} className="w-fit md:mx-auto">
-                {preview}
+              <div className="w-full overflow-x-auto overflow-y-visible">
+                <div ref={previewRef} className="w-max mx-auto">
+                  {preview}
+                </div>
               </div>
             </section>
           </div>

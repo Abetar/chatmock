@@ -70,15 +70,11 @@ export function ChatPreview({
   // =========================
   // CANVAS BACKGROUNDS
   // =========================
-  // Messenger = literal blanco/negro
   const msCanvasBg = isDark ? "bg-black" : "bg-white";
-
-  // WhatsApp = color base + wallpaper opcional
   const waCanvasBg = isDark ? "bg-[#0b141a]" : "bg-[#eae6df]";
 
   const showWallpaper = isWA && !!wallpaperUrl;
 
-  // Fondo default WhatsApp (sin doodles) cuando no hay wallpaper
   const waFallbackBg = (
     <>
       {isDark ? (
@@ -107,7 +103,6 @@ export function ChatPreview({
   // =========================
   // BUBBLES
   // =========================
-  // WhatsApp bubbles
   const waThemBubble = isDark
     ? "bg-[#1f2c33] text-white/95"
     : "bg-white text-neutral-900";
@@ -115,7 +110,6 @@ export function ChatPreview({
     ? "bg-[#005c4b] text-white"
     : "bg-[#d9fdd3] text-neutral-900";
 
-  // Messenger bubbles (real-like)
   const msThemBubble = isDark
     ? "bg-[#2b2b2e] text-white/95"
     : "bg-[#e5e7eb] text-neutral-900";
@@ -135,12 +129,20 @@ export function ChatPreview({
   // =========================
   const initial = contactName?.[0]?.toUpperCase() || "A";
 
+  // ✅ FIX REAL PARA “SE CORTA EN MOBILE” (flex + shrink):
+  // - min-w-0 permite que el elemento SI pueda encogerse dentro de flex
+  // - en Messenger, max-w-full en mobile y solo limitamos en sm+
+  const rootClass = cn(
+    "w-full mx-auto min-w-0",
+    isMS ? "max-w-full sm:max-w-[430px]" : "max-w-[430px]"
+  );
+
   return (
-    <div className="w-full max-w-[430px] mx-auto" data-chat-root>
+    <div className={rootClass} data-chat-root>
       <div
         className={cn(
           frameRadius,
-          "overflow-hidden border shadow-[0_12px_50px_rgba(0,0,0,.25)]",
+          "w-full overflow-hidden border shadow-[0_12px_50px_rgba(0,0,0,.25)]",
           border,
           isDark ? "bg-black" : "bg-white"
         )}
@@ -157,8 +159,7 @@ export function ChatPreview({
               ? isDark
                 ? ""
                 : "border-b border-neutral-200"
-              : // ✅ Messenger también trae border sutil en light
-              isDark
+              : isDark
               ? "border-b border-white/10"
               : "border-b border-neutral-200"
           )}
@@ -236,38 +237,29 @@ export function ChatPreview({
             {isWA ? (
               <>
                 <button
-                  className={cn(
-                    "p-2 rounded-full transition",
-                    waHeaderIcons
-                  )}
+                  className={cn("p-2 rounded-full transition", waHeaderIcons)}
                   aria-label="Video"
                 >
                   <Video className="h-5 w-5" />
                 </button>
 
                 <button
-                  className={cn(
-                    "p-2 rounded-full transition",
-                    waHeaderIcons
-                  )}
+                  className={cn("p-2 rounded-full transition", waHeaderIcons)}
                   aria-label="Call"
                 >
                   <Phone className="h-5 w-5" />
                 </button>
 
                 <button
-                  className={cn(
-                    "p-2 rounded-full transition",
-                    waHeaderIcons
-                  )}
+                  className={cn("p-2 rounded-full transition", waHeaderIcons)}
                   aria-label="More"
                 >
                   <MoreVertical className="h-5 w-5" />
                 </button>
               </>
             ) : (
-              // ✅ Messenger: Phone, Video(Camera), Info (en ese orden)
               <>
+                {/* ✅ Messenger: Phone, Video, Info */}
                 <button
                   className={cn(
                     "p-2 rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
@@ -309,9 +301,7 @@ export function ChatPreview({
             isWA ? waCanvasBg : msCanvasBg
           )}
         >
-          {/* ========================= */}
-          {/* BACKGROUND LAYER (z-0) */}
-          {/* ========================= */}
+          {/* BACKGROUND */}
           <div className="absolute inset-0 z-0">
             {isWA ? (
               showWallpaper ? (
@@ -322,7 +312,6 @@ export function ChatPreview({
                     alt="Wallpaper"
                     className="absolute inset-0 h-full w-full object-cover"
                   />
-                  {/* overlay para legibilidad */}
                   <div
                     className={cn(
                       "absolute inset-0",
@@ -336,9 +325,7 @@ export function ChatPreview({
             ) : null}
           </div>
 
-          {/* ========================= */}
-          {/* MESSAGES (z-10) */}
-          {/* ========================= */}
+          {/* MESSAGES */}
           <div
             data-chat-scroll
             className={cn(
@@ -370,7 +357,6 @@ export function ChatPreview({
                   key={m.id}
                   className={cn("flex", isMe ? "justify-end" : "justify-start")}
                 >
-                  {/* Messenger: mostrar avatar pequeño a la izquierda (opcional, como screenshot real) */}
                   {isMS && !isMe ? (
                     <div className="mr-2 mt-1 shrink-0">
                       <div
@@ -394,9 +380,7 @@ export function ChatPreview({
                       isMS ? "rounded-2xl" : ""
                     )}
                   >
-                    <div className="whitespace-pre-wrap break-words">
-                      {m.text}
-                    </div>
+                    <div className="whitespace-pre-wrap break-words">{m.text}</div>
 
                     <div
                       className={cn(
@@ -406,7 +390,6 @@ export function ChatPreview({
                     >
                       <span>{m.time}</span>
 
-                      {/* WhatsApp ticks */}
                       {isWA && isMe ? (
                         <span
                           className={cn(
@@ -431,7 +414,7 @@ export function ChatPreview({
             })}
           </div>
 
-          {/* Disclaimer (arriba del input) */}
+          {/* Disclaimer */}
           <div
             className={cn(
               "pointer-events-none absolute z-20 bottom-[86px] left-1/2 -translate-x-1/2 text-[10px] px-2 py-1 rounded-full border",
@@ -443,9 +426,7 @@ export function ChatPreview({
             Simulated chat · Not real
           </div>
 
-          {/* ========================= */}
-          {/* INPUT BAR (z-20) */}
-          {/* ========================= */}
+          {/* INPUT BAR */}
           <div
             className={cn(
               "relative z-20 w-full border-t backdrop-blur",
@@ -458,11 +439,9 @@ export function ChatPreview({
                 : "border-neutral-200 bg-white/95"
             )}
           >
-            {/* ============ WhatsApp ============ */}
             {isWA ? (
               <div className="px-3 py-3">
                 {isIOS ? (
-                  // WhatsApp iOS-like
                   <div className="flex items-center gap-3">
                     <button
                       className={cn(
@@ -524,7 +503,6 @@ export function ChatPreview({
                     </button>
                   </div>
                 ) : (
-                  // WhatsApp Android-like (como tu screenshot real)
                   <div className="flex items-center gap-3">
                     <div
                       className={cn(
@@ -590,11 +568,8 @@ export function ChatPreview({
                 )}
               </div>
             ) : (
-              // ============ Messenger ============
-              // ✅ Orden: +, camera, image, mic | pill con "Message" + emoji (dentro, derecha) | like fuera, extremo derecho
               <div className="px-3 py-3">
                 <div className="flex items-center gap-2">
-                  {/* Left icons */}
                   <button
                     className={cn(
                       "h-10 w-10 rounded-full grid place-items-center shrink-0",
@@ -635,7 +610,6 @@ export function ChatPreview({
                     <Mic className="h-6 w-6" />
                   </button>
 
-                  {/* Pill input */}
                   <div
                     className={cn(
                       "flex-1 h-10 rounded-full px-4 flex items-center min-w-[150px] gap-3",
@@ -651,7 +625,6 @@ export function ChatPreview({
                       Message
                     </span>
 
-                    {/* Emoji INSIDE pill, right side */}
                     <button
                       className={cn(
                         "ml-auto grid place-items-center shrink-0",
@@ -663,7 +636,6 @@ export function ChatPreview({
                     </button>
                   </div>
 
-                  {/* Like OUTSIDE pill, far right */}
                   <button
                     className={cn(
                       "h-10 w-10 rounded-full grid place-items-center shrink-0",
