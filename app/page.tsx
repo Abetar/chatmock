@@ -23,6 +23,10 @@ export default function Page() {
   // ✅ Wallpaper (solo WhatsApp)
   const [wallpaperUrl, setWallpaperUrl] = useState<string | null>(null);
 
+  // ✅ NUEVO: avatares (solo WhatsApp por ahora)
+  const [waContactAvatarUrl, setWaContactAvatarUrl] = useState<string>("");
+  const [waMeAvatarUrl, setWaMeAvatarUrl] = useState<string>("");
+
   // ✅ ref al contenedor que vamos a exportar
   const previewRef = useRef<HTMLDivElement | null>(null);
 
@@ -36,9 +40,21 @@ export default function Page() {
         messages={messages}
         // ✅ solo pasa wallpaper si es WhatsApp
         wallpaperUrl={platform === "whatsapp" ? wallpaperUrl : null}
+        // ✅ NUEVO: avatares (solo WhatsApp por ahora)
+        contactAvatarUrl={platform === "whatsapp" ? waContactAvatarUrl : null}
+        meAvatarUrl={platform === "whatsapp" ? waMeAvatarUrl : null}
       />
     ),
-    [platform, theme, os, contactName, messages, wallpaperUrl]
+    [
+      platform,
+      theme,
+      os,
+      contactName,
+      messages,
+      wallpaperUrl,
+      waContactAvatarUrl,
+      waMeAvatarUrl,
+    ]
   );
 
   // ✅ Cargar wallpaper (archivo -> dataURL)
@@ -257,6 +273,14 @@ export default function Page() {
 
                 <MessageComposer
                   onAdd={(msg) => setMessages((prev) => [...prev, msg])}
+                  // ✅ NUEVO: recibe urls de avatar desde el formulario y las guardamos aquí
+                  onAvatarsChange={(v) => {
+                    setWaContactAvatarUrl(v.contactAvatarUrl);
+                    setWaMeAvatarUrl(v.meAvatarUrl);
+                  }}
+                  // ✅ opcional: mantener valores si re-render / switches
+                  initialContactAvatarUrl={waContactAvatarUrl}
+                  initialMeAvatarUrl={waMeAvatarUrl}
                 />
 
                 <div className="flex gap-2">
@@ -310,7 +334,8 @@ export default function Page() {
 
             {/* Preview */}
             <section className={cnPreviewSection(tab)}>
-              <div className="w-full overflow-x-auto overflow-y-visible">
+              {/* ✅ FIX: overflow horizontal para mobile + no recortar header */}
+              <div className="w-full overflow-x-auto overflow-y-visible overscroll-x-contain px-2">
                 <div ref={previewRef} className="w-max mx-auto">
                   {preview}
                 </div>
