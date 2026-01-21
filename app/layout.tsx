@@ -16,10 +16,15 @@ const geistMono = Geist_Mono({
 
 // ✅ Ajusta esto a tu dominio real (Vercel o custom)
 const siteUrl = "https://chatmock.vercel.app";
+const agUrl = "https://agsolutions.dev";
+
 const appName = "ChatMock";
-const appTagline = "Generador de chats ficticios estilo WhatsApp y Messenger";
+const appTagline = "Generador de previews de chat estilo WhatsApp y Messenger";
 const appDescription =
-  "Crea conversaciones ficticias estilo WhatsApp y Messenger para contenido. Personaliza nombre, mensajes, tema oscuro/claro y exporta a PNG en segundos. Sin login.";
+  "Crea previews simulados estilo WhatsApp y Messenger para contenido, storytelling y mockups visuales. Personaliza nombre, mensajes, tema oscuro/claro y exporta a PNG en segundos. Sin login.";
+
+// ✅ Recomendado: crea /public/og.png (1200x630)
+const ogImage = "/og.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -34,17 +39,19 @@ export const metadata: Metadata = {
   category: "Technology",
   keywords: [
     "generador de chat",
-    "chat whatsapp falso",
-    "simulador de whatsapp",
+    "chat simulado",
+    "chat mockup",
+    "mock chat",
     "fake chat generator",
     "messenger chat generator",
-    "conversaciones ficticias",
+    "whatsapp chat generator",
+    "conversaciones simuladas",
     "crear chat para tiktok",
     "exportar chat a png",
-    "mock chat",
     "simulador de mensajes",
+    "chat preview",
   ],
-  authors: [{ name: "AG Solutions" }],
+  authors: [{ name: "AG Solutions", url: agUrl }],
   creator: "AG Solutions",
   publisher: "AG Solutions",
 
@@ -55,7 +62,6 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-    // buena práctica para snippets (Google)
     googleBot: {
       index: true,
       follow: true,
@@ -75,7 +81,7 @@ export const metadata: Metadata = {
     locale: "es_MX",
     images: [
       {
-        url: "/og.png", // ✅ crea /public/og.png (1200x630)
+        url: ogImage,
         width: 1200,
         height: 630,
         alt: `${appName} preview`,
@@ -88,43 +94,59 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${appName} — ${appTagline}`,
     description: appDescription,
-    images: ["/og.png"],
+    images: [ogImage],
     // Si tienes @usuario:
     // creator: "@tuuser",
+    // site: "@tuuser",
   },
 
   // Favicons / icons (coloca en /public)
   icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/icon.png", type: "image/png" },
-    ],
+    icon: [{ url: "/favicon.ico" }, { url: "/icon.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
 
   // PWA-ish hints (opcionales)
   manifest: "/site.webmanifest",
 
-  // Para Chrome UI (si quieres)
-  // themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#070b10" }],
+  // ✅ Ayuda a que el UI del navegador se vea coherente (opcional)
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#070b10" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f4f6" },
+  ],
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // ✅ JSON-LD mejorado: Organization + WebApplication
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: appName,
-    url: siteUrl,
-    applicationCategory: "UtilityApplication",
-    operatingSystem: "Web",
-    description: appDescription,
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-    },
+    "@graph": [
+      {
+        "@type": "Organization",
+        name: "AG Solutions",
+        url: agUrl,
+      },
+      {
+        "@type": "WebApplication",
+        name: appName,
+        url: siteUrl,
+        applicationCategory: "UtilityApplication",
+        operatingSystem: "Web",
+        description: appDescription,
+        publisher: {
+          "@type": "Organization",
+          name: "AG Solutions",
+          url: agUrl,
+        },
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+      },
+    ],
   };
 
   return (

@@ -1,4 +1,3 @@
-// components/MessageComposer.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -24,14 +23,12 @@ function parseDurationToSec(input: string): number | null {
   const v = input.trim();
   if (!v) return null;
 
-  // Solo segundos: "75"
   if (/^\d+$/.test(v)) {
     const sec = Number(v);
     if (!Number.isFinite(sec) || sec <= 0) return null;
     return sec;
   }
 
-  // mm:ss (permite m >= 0, ss 00-59)
   const m = v.match(/^(\d+):([0-5]\d)$/);
   if (!m) return null;
   const minutes = Number(m[1]);
@@ -46,6 +43,18 @@ type AvatarsPayload = {
   meAvatarUrl: string;
 };
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  });
+}
+
+const MAX_AVATAR_MB = 5;
+const MAX_AVATAR_BYTES = MAX_AVATAR_MB * 1024 * 1024;
+
 export function MessageComposer({
   onAdd,
   onAvatarsChange,
@@ -53,37 +62,29 @@ export function MessageComposer({
   initialMeAvatarUrl = "",
 }: {
   onAdd: (msg: ChatMessage) => void;
-
-  // ✅ nuevo (opcional): para que el padre guarde y se lo pase a ChatPreview
   onAvatarsChange?: (v: AvatarsPayload) => void;
-
-  // ✅ nuevo (opcional): por si quieres persistir valores al cambiar plataforma/tema/etc.
   initialContactAvatarUrl?: string;
   initialMeAvatarUrl?: string;
 }) {
   const [side, setSide] = useState<"me" | "them">("me");
-
-  // ✅ nuevo: modo
   const [mode, setMode] = useState<"text" | "audio">("text");
 
-  // Text
   const [text, setText] = useState("");
-
-  // Audio
-  const [duration, setDuration] = useState("0:12"); // default útil
-
-  // Shared
+  const [duration, setDuration] = useState("0:12");
   const [time, setTime] = useState(nowTime());
 
-  // ✅ nuevo: avatares (WhatsApp)
-  const [contactAvatarUrl, setContactAvatarUrl] = useState(initialContactAvatarUrl);
+  const [contactAvatarUrl, setContactAvatarUrl] = useState(
+    initialContactAvatarUrl
+  );
   const [meAvatarUrl, setMeAvatarUrl] = useState(initialMeAvatarUrl);
 
-  // ✅ informar al padre si existe callback
+  const [contactAvatarErr, setContactAvatarErr] = useState("");
+  const [meAvatarErr, setMeAvatarErr] = useState("");
+
   useEffect(() => {
     onAvatarsChange?.({
-      contactAvatarUrl: contactAvatarUrl.trim(),
-      meAvatarUrl: meAvatarUrl.trim(),
+      contactAvatarUrl: contactAvatarUrl || "",
+      meAvatarUrl: meAvatarUrl || "",
     });
   }, [contactAvatarUrl, meAvatarUrl, onAvatarsChange]);
 
@@ -96,6 +97,38 @@ export function MessageComposer({
     if (mode === "text") return text.trim().length > 0;
     return durationSec !== null;
   }, [mode, text, durationSec]);
+
+  async function onPickAvatar(
+    file: File | null,
+    who: "contact" | "me"
+  ): Promise<void> {
+    if (!file) return;
+
+    if (who === "contact") setContactAvatarErr("");
+    else setMeAvatarErr("");
+
+    if (!file.type.startsWith("image/")) {
+      const msg = "Archivo inválido. Usa png/jpg/webp.";
+      who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_BYTES) {
+      const msg = `Máximo ${MAX_AVATAR_MB}MB.`;
+      who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      who === "contact"
+        ? setContactAvatarUrl(dataUrl)
+        : setMeAvatarUrl(dataUrl);
+    } catch {
+      const msg = "No se pudo cargar la imagen.";
+      who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -119,7 +152,7 @@ export function MessageComposer({
             "rounded-xl border px-3 py-2 text-sm",
             side === "them"
               ? "bg-white/10 border-white/20 text-white"
-              : "bg-white/5 border border-white/10 text-white/70"
+              : "bg-white/5 border-white/10 text-white/70"
           )}
           type="button"
         >
@@ -127,7 +160,7 @@ export function MessageComposer({
         </button>
       </div>
 
-      {/* Mode: Text / Audio */}
+      {/* Mode */}
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setMode("text")}
@@ -163,59 +196,18 @@ export function MessageComposer({
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
-            placeholder="Escribe el texto…"
-            className="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-white/30 outline-none focus:border-white/25"
+            className="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white outline-none focus:border-white/25"
           />
         </label>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-          <div>
-            <div className="text-sm font-medium">Nota de voz</div>
-            <div className="text-xs text-white/55">
-              Duración: escribe <span className="font-semibold">segundos</span> (ej. 75) o{" "}
-              <span className="font-semibold">mm:ss</span> (ej. 1:15)
-            </div>
-          </div>
-
-          <label className="block">
-            <span className="text-xs text-white/60">Duración</span>
-            <input
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="0:12"
-              className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white outline-none focus:border-white/25"
-            />
-            {duration.trim().length > 0 && durationSec === null ? (
-              <div className="mt-1 text-[11px] text-rose-300/90">
-                Formato inválido. Usa 75 o 1:15
-              </div>
-            ) : null}
-          </label>
-
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setDuration("0:07")}
-              className="rounded-xl bg-white/10 border border-white/10 text-white/80 px-3 py-2 hover:bg-white/15 text-sm"
-            >
-              0:07
-            </button>
-            <button
-              type="button"
-              onClick={() => setDuration("0:12")}
-              className="rounded-xl bg-white/10 border border-white/10 text-white/80 px-3 py-2 hover:bg-white/15 text-sm"
-            >
-              0:12
-            </button>
-            <button
-              type="button"
-              onClick={() => setDuration("1:05")}
-              className="rounded-xl bg-white/10 border border-white/10 text-white/80 px-3 py-2 hover:bg-white/15 text-sm"
-            >
-              1:05
-            </button>
-          </div>
-        </div>
+        <label className="block">
+          <span className="text-xs text-white/60">Duración</span>
+          <input
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white outline-none"
+          />
+        </label>
       )}
 
       {/* Time */}
@@ -225,47 +217,93 @@ export function MessageComposer({
           <input
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white outline-none focus:border-white/25"
+            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white outline-none"
           />
         </label>
-
         <button
           onClick={() => setTime(nowTime())}
-          className="mt-6 rounded-xl bg-white/10 border border-white/10 text-white/80 px-3 py-2 hover:bg-white/15"
+          className="mt-6 rounded-xl bg-white/10 border border-white/10 px-3 py-2"
           type="button"
         >
           Hora actual
         </button>
       </div>
 
-      {/* ✅ Avatars (WhatsApp) */}
+      {/* Avatars */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-        <div>
-          <div className="text-sm font-medium">Avatares (WhatsApp)</div>
-          <div className="text-xs text-white/55">
-            Pega una URL (png/jpg/webp). Se usará en el header y en audios.
+        <div className="text-sm font-medium">Avatares (WhatsApp)</div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Contact */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full overflow-hidden border border-white/10">
+                {contactAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={contactAvatarUrl} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-white/40 text-xs">
+                    ?
+                  </div>
+                )}
+              </div>
+
+              <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 bg-white/10 border border-white/10 hover:bg-white/15 text-xs">
+                <span className="h-7 w-7 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold">
+                  +
+                </span>
+                Subir
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    onPickAvatar(e.target.files?.[0] ?? null, "contact");
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {contactAvatarErr && (
+              <div className="text-[11px] text-rose-300">{contactAvatarErr}</div>
+            )}
+          </div>
+
+          {/* Me */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full overflow-hidden border border-white/10">
+                {meAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={meAvatarUrl} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-white/40 text-xs">
+                    Me
+                  </div>
+                )}
+              </div>
+
+              <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl px-3 py-2 bg-white/10 border border-white/10 hover:bg-white/15 text-xs">
+                <span className="h-7 w-7 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold">
+                  +
+                </span>
+                Subir
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    onPickAvatar(e.target.files?.[0] ?? null, "me");
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {meAvatarErr && (
+              <div className="text-[11px] text-rose-300">{meAvatarErr}</div>
+            )}
           </div>
         </div>
-
-        <label className="block">
-          <span className="text-xs text-white/60">Avatar contacto (Benito / izquierda)</span>
-          <input
-            value={contactAvatarUrl}
-            onChange={(e) => setContactAvatarUrl(e.target.value)}
-            placeholder="https://.../benito.png"
-            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white outline-none focus:border-white/25"
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-xs text-white/60">Avatar yo (derecha)</span>
-          <input
-            value={meAvatarUrl}
-            onChange={(e) => setMeAvatarUrl(e.target.value)}
-            placeholder="https://.../yo.png"
-            className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white outline-none focus:border-white/25"
-          />
-        </label>
       </div>
 
       {/* Add */}
@@ -281,41 +319,28 @@ export function MessageComposer({
 
           const msg: ChatMessage =
             mode === "text"
-              ? {
-                  ...base,
-                  type: "text",
-                  text: text.trim(),
-                }
+              ? { ...base, type: "text", text: text.trim() }
               : {
                   ...base,
                   type: "audio",
                   durationSec: durationSec ?? 12,
-                  // opcional: semilla para barras “consistentes” por mensaje
-                  waveformSeed: Math.floor(Math.random() * 1000000),
-                  // opcional: estado inicial
-                  isPlayed: side === "me" ? true : false,
+                  waveformSeed: Math.floor(Math.random() * 1_000_000),
+                  isPlayed: side === "me",
                 };
 
           onAdd(msg);
-
-          // reset campos
           if (mode === "text") setText("");
-          // en audio dejamos duración como está (más cómodo para agregar varias)
         }}
         className={cn(
           "w-full rounded-2xl py-3 font-medium",
           canAdd
-            ? "bg-emerald-500/90 hover:bg-emerald-500 text-black"
-            : "bg-white/5 text-white/30 border border-white/10 cursor-not-allowed"
+            ? "bg-emerald-500 text-black hover:bg-emerald-400"
+            : "bg-white/5 text-white/30 border border-white/10"
         )}
         type="button"
       >
         {mode === "text" ? "Agregar mensaje" : "Agregar nota de voz"}
       </button>
-
-      <p className="text-[11px] text-white/45 leading-snug">
-        Recomendado: mantener un watermark/disclaimer para evitar mal uso y para que Ads no te rechace.
-      </p>
     </div>
   );
 }
