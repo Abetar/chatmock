@@ -1,3 +1,4 @@
+// components/MessageComposer.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -38,18 +39,40 @@ function parseDurationToSec(input: string): number | null {
   return total;
 }
 
+function safeId() {
+  // ✅ Si existe randomUUID, úsalo
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c && "randomUUID" in c && typeof (c as any).randomUUID === "function") {
+    return (c as any).randomUUID() as string;
+  }
+
+  // ✅ Fallback: id suficientemente único para tu app (client-side)
+  return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 type AvatarsPayload = {
   contactAvatarUrl: string;
   meAvatarUrl: string;
 };
 
-function readFileAsDataUrl(file: File): Promise<string> {
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
+}
+
+function isHeicLike(file: File) {
+  const t = (file.type || "").toLowerCase();
+  const n = (file.name || "").toLowerCase();
+  return (
+    t.includes("heic") ||
+    t.includes("heif") ||
+    n.endsWith(".heic") ||
+    n.endsWith(".heif")
+  );
 }
 
 const MAX_AVATAR_MB = 5;
@@ -71,7 +94,11 @@ export function MessageComposer({
 
   const [text, setText] = useState("");
   const [duration, setDuration] = useState("0:12");
-  const [time, setTime] = useState(nowTime());
+  const [time, setTime] = useState("");
+
+useEffect(() => {
+  setTime(nowTime());
+}, []);
 
   const [contactAvatarUrl, setContactAvatarUrl] = useState(
     initialContactAvatarUrl
@@ -98,6 +125,20 @@ export function MessageComposer({
     return durationSec !== null;
   }, [mode, text, durationSec]);
 
+  async function convertHeicToPngBlob(file: File): Promise<Blob> {
+    // ✅ Import dinámico (evita "window is not defined")
+    const mod: any = await import("heic2any");
+    const heic2any = mod?.default ?? mod;
+
+    const out: Blob | Blob[] = await heic2any({
+      blob: file,
+      toType: "image/png",
+      quality: 0.95,
+    });
+
+    return Array.isArray(out) ? out[0] : out;
+  }
+
   async function onPickAvatar(
     file: File | null,
     who: "contact" | "me"
@@ -107,12 +148,7 @@ export function MessageComposer({
     if (who === "contact") setContactAvatarErr("");
     else setMeAvatarErr("");
 
-    if (!file.type.startsWith("image/")) {
-      const msg = "Archivo inválido. Usa png/jpg/webp.";
-      who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
-      return;
-    }
-
+    // tamaño base del archivo original
     if (file.size > MAX_AVATAR_BYTES) {
       const msg = `Máximo ${MAX_AVATAR_MB}MB.`;
       who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
@@ -120,12 +156,38 @@ export function MessageComposer({
     }
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      who === "contact"
-        ? setContactAvatarUrl(dataUrl)
-        : setMeAvatarUrl(dataUrl);
-    } catch {
-      const msg = "No se pudo cargar la imagen.";
+      let dataUrl = "";
+
+      // ✅ Si es HEIC/HEIF: convertir a PNG para que html-to-image lo pinte en iOS
+      if (isHeicLike(file)) {
+        const pngBlob = await convertHeicToPngBlob(file);
+
+        // Ojo: la conversión puede aumentar tamaño
+        if (pngBlob.size > MAX_AVATAR_BYTES) {
+          const msg = `La imagen convertida es muy pesada. Máximo ${MAX_AVATAR_MB}MB.`;
+          who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
+          return;
+        }
+
+        dataUrl = await readBlobAsDataUrl(pngBlob);
+      } else {
+        // ✅ Para jpg/png/webp normales
+        if (!file.type.startsWith("image/")) {
+          const msg = "Archivo inválido. Usa png/jpg/webp (o heic desde iPhone).";
+          who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
+          return;
+        }
+        dataUrl = await readBlobAsDataUrl(file);
+      }
+
+      if (!dataUrl) throw new Error("DataURL vacío.");
+
+      who === "contact" ? setContactAvatarUrl(dataUrl) : setMeAvatarUrl(dataUrl);
+    } catch (err) {
+      const msg =
+        isHeicLike(file)
+          ? "No se pudo convertir HEIC. Intenta con otra imagen o desactiva HEIC en iPhone (Ajustes > Cámara > Formatos > Más compatible)."
+          : "No se pudo cargar la imagen.";
       who === "contact" ? setContactAvatarErr(msg) : setMeAvatarErr(msg);
     }
   }
@@ -206,7 +268,13 @@ export function MessageComposer({
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             className="mt-1 w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white outline-none"
+            placeholder="0:12 ó 75"
           />
+          {duration.trim().length > 0 && durationSec === null ? (
+            <div className="mt-1 text-[11px] text-rose-300/90">
+              Formato inválido. Usa 75 o 1:15
+            </div>
+          ) : null}
         </label>
       )}
 
@@ -232,6 +300,9 @@ export function MessageComposer({
       {/* Avatars */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
         <div className="text-sm font-medium">Avatares (WhatsApp)</div>
+        <div className="text-xs text-white/50">
+          iPhone sube HEIC por defecto: lo convertimos a PNG para que exporte bien.
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Contact */}
@@ -240,7 +311,13 @@ export function MessageComposer({
               <div className="h-10 w-10 rounded-full overflow-hidden border border-white/10">
                 {contactAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={contactAvatarUrl} className="h-full w-full object-cover" />
+                  <img
+                    src={contactAvatarUrl}
+                    className="h-full w-full object-cover"
+                    alt="Avatar contacto"
+                    loading="eager"
+                    decoding="sync"
+                  />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center text-white/40 text-xs">
                     ?
@@ -255,7 +332,7 @@ export function MessageComposer({
                 Subir
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.heic,.heif"
                   className="hidden"
                   onChange={(e) => {
                     onPickAvatar(e.target.files?.[0] ?? null, "contact");
@@ -275,7 +352,13 @@ export function MessageComposer({
               <div className="h-10 w-10 rounded-full overflow-hidden border border-white/10">
                 {meAvatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={meAvatarUrl} className="h-full w-full object-cover" />
+                  <img
+                    src={meAvatarUrl}
+                    className="h-full w-full object-cover"
+                    alt="Avatar yo"
+                    loading="eager"
+                    decoding="sync"
+                  />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center text-white/40 text-xs">
                     Me
@@ -290,7 +373,7 @@ export function MessageComposer({
                 Subir
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.heic,.heif"
                   className="hidden"
                   onChange={(e) => {
                     onPickAvatar(e.target.files?.[0] ?? null, "me");
@@ -310,8 +393,9 @@ export function MessageComposer({
       <button
         disabled={!canAdd}
         onClick={() => {
+          // (Tu error de crypto.randomUUID ya lo tienes resuelto usando crypto.randomUUID/UUID)
           const base: ChatMessage = {
-            id: crypto.randomUUID(),
+            id: safeId(),
             side,
             time: time.trim() || nowTime(),
             status: side === "me" ? "read" : undefined,

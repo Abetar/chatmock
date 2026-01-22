@@ -12,6 +12,132 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { toPng } from "html-to-image";
 import { OsToggle } from "@/components/OsToggle";
 
+/**
+ * ✅ Detecta iOS WebKit (Chrome iOS también es WebKit).
+ */
+function isIOSWebKit() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/.test(ua);
+}
+
+/**
+ * ✅ C: iOS/Safari a veces exporta antes de que <img> termine decode/carga.
+ * Espera a que todas las imágenes del clon estén "ready".
+ */
+async function waitForImagesToBeReady(root: HTMLElement, timeoutMs = 2500) {
+  const imgs = Array.from(root.querySelectorAll("img")) as HTMLImageElement[];
+  if (imgs.length === 0) return;
+
+  const start = Date.now();
+
+  await Promise.all(
+    imgs.map(async (img) => {
+      try {
+        if (img.complete && img.naturalWidth > 0) return;
+
+        const anyImg = img as any;
+        if (typeof anyImg.decode === "function") {
+          await Promise.race([
+            anyImg.decode(),
+            new Promise<void>((resolve) => setTimeout(resolve, 800)),
+          ]);
+          if (img.complete && img.naturalWidth > 0) return;
+        }
+
+        await new Promise<void>((resolve) => {
+          const done = () => resolve();
+
+          const onLoad = () => {
+            cleanup();
+            done();
+          };
+          const onError = () => {
+            cleanup();
+            done();
+          };
+          const cleanup = () => {
+            img.removeEventListener("load", onLoad);
+            img.removeEventListener("error", onError);
+          };
+
+          img.addEventListener("load", onLoad, { once: true });
+          img.addEventListener("error", onError, { once: true });
+
+          const left = Math.max(0, timeoutMs - (Date.now() - start));
+          setTimeout(() => {
+            cleanup();
+            done();
+          }, left);
+        });
+      } catch {
+        // no bloqueamos export si algo falla
+      }
+    })
+  );
+}
+
+/**
+ * ✅ FIX iOS: algunos exporters no soportan colores modernos (oklab/oklch/color-mix).
+ * Sanitiza el árbol clonado y reemplaza esos valores por fallback seguro.
+ */
+function sanitizeUnsupportedColors(root: HTMLElement) {
+  const BAD = /(oklab|oklch|lab|lch|color-mix|color|hwb)\(/i;
+
+  // incluye root + todos los hijos
+  const all = [root, ...Array.from(root.querySelectorAll("*"))] as HTMLElement[];
+
+  for (const el of all) {
+    try {
+      const cs = getComputedStyle(el);
+
+      // 1) Variables CSS (Tailwind suele meter oklch/oklab ahí)
+      // Reescribimos vars conflictivas a algo seguro.
+      for (let i = 0; i < cs.length; i++) {
+        const prop = cs[i];
+        if (!prop || prop[0] !== "-" || prop[1] !== "-") continue;
+
+        const v = cs.getPropertyValue(prop);
+        if (v && BAD.test(v)) {
+          // fallback: transparente (no rompe render)
+          el.style.setProperty(prop, "rgba(0,0,0,0)");
+        }
+      }
+
+      // 2) Sombras/filters (a veces traen color-mix/oklab)
+      const boxShadow = cs.boxShadow || "";
+      if (BAD.test(boxShadow)) el.style.boxShadow = "none";
+
+      const textShadow = (cs as any).textShadow || "";
+      if (typeof textShadow === "string" && BAD.test(textShadow)) {
+        (el.style as any).textShadow = "none";
+      }
+
+      const filter = cs.filter || "";
+      if (BAD.test(filter)) el.style.filter = "none";
+
+      // 3) Colores directos (por si alguno viniera en oklab)
+      // Si el computed style ya viene en rgb(), no hacemos nada.
+      const bg = cs.backgroundColor || "";
+      if (BAD.test(bg)) el.style.backgroundColor = "transparent";
+
+      const color = cs.color || "";
+      if (BAD.test(color)) el.style.color = "rgb(255,255,255)";
+
+      const bt = cs.borderTopColor || "";
+      if (BAD.test(bt)) el.style.borderTopColor = "rgba(255,255,255,0.2)";
+      const br = cs.borderRightColor || "";
+      if (BAD.test(br)) el.style.borderRightColor = "rgba(255,255,255,0.2)";
+      const bb = cs.borderBottomColor || "";
+      if (BAD.test(bb)) el.style.borderBottomColor = "rgba(255,255,255,0.2)";
+      const bl = cs.borderLeftColor || "";
+      if (BAD.test(bl)) el.style.borderLeftColor = "rgba(255,255,255,0.2)";
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export default function Page() {
   const [platform, setPlatform] = useState<Platform>("whatsapp");
   const [contactName, setContactName] = useState("Benito Camelo");
@@ -23,7 +149,7 @@ export default function Page() {
   // ✅ Wallpaper (solo WhatsApp)
   const [wallpaperUrl, setWallpaperUrl] = useState<string | null>(null);
 
-  // ✅ NUEVO: avatares (solo WhatsApp por ahora)
+  // ✅ avatares (solo WhatsApp)
   const [waContactAvatarUrl, setWaContactAvatarUrl] = useState<string>("");
   const [waMeAvatarUrl, setWaMeAvatarUrl] = useState<string>("");
 
@@ -38,9 +164,7 @@ export default function Page() {
         os={os}
         contactName={contactName}
         messages={messages}
-        // ✅ solo pasa wallpaper si es WhatsApp
         wallpaperUrl={platform === "whatsapp" ? wallpaperUrl : null}
-        // ✅ NUEVO: avatares (solo WhatsApp por ahora)
         contactAvatarUrl={platform === "whatsapp" ? waContactAvatarUrl : null}
         meAvatarUrl={platform === "whatsapp" ? waMeAvatarUrl : null}
       />
@@ -68,7 +192,7 @@ export default function Page() {
     reader.readAsDataURL(file);
   }
 
-  // ✅ Export PNG (vista) - FIX: clon off-screen para evitar recortes
+  // ✅ Export PNG (vista)
   async function exportPng() {
     if (!previewRef.current) return;
 
@@ -90,9 +214,40 @@ export default function Page() {
     document.body.appendChild(wrapper);
 
     try {
+      await waitForImagesToBeReady(clone);
+
+      // ✅ FIX: neutraliza oklab/oklch/color-mix en el clon
+      sanitizeUnsupportedColors(clone);
+
+      // micro repaint iOS
+      wrapper.style.transform = "translateZ(0)";
+      clone.style.transform = "translateZ(0)";
+
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
       const filename = `chat-${platform}-${theme}-${new Date()
         .toISOString()
         .slice(0, 10)}.png`;
+
+      // ✅ iOS fallback
+      if (isIOSWebKit()) {
+        const html2canvas = (await import("html2canvas")).default;
+
+        const canvas = await html2canvas(clone, {
+          backgroundColor: theme === "dark" ? "#070b10" : "#f3f4f6",
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+        });
+
+        const dataUrl = canvas.toDataURL("image/png");
+
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+        return;
+      }
 
       const dataUrl = await toPng(clone, {
         cacheBust: true,
@@ -152,9 +307,38 @@ export default function Page() {
         scroller.style.maxHeight = "none";
       }
 
+      await waitForImagesToBeReady(clone);
+
+      // ✅ FIX: neutraliza oklab/oklch/color-mix en el clon
+      sanitizeUnsupportedColors(clone);
+
+      wrapper.style.transform = "translateZ(0)";
+      clone.style.transform = "translateZ(0)";
+
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
       const filename = `chat-full-${platform}-${theme}-${new Date()
         .toISOString()
         .slice(0, 10)}.png`;
+
+      if (isIOSWebKit()) {
+        const html2canvas = (await import("html2canvas")).default;
+
+        const canvas = await html2canvas(clone, {
+          backgroundColor: theme === "dark" ? "#070b10" : "#f3f4f6",
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+        });
+
+        const dataUrl = canvas.toDataURL("image/png");
+
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+        return;
+      }
 
       const dataUrl = await toPng(clone, {
         cacheBust: true,
@@ -222,48 +406,9 @@ export default function Page() {
                       <PlatformToggle value={platform} onChange={setPlatform} />
                     </div>
                   </div>
-
-                  {/* ✅ Built by (visible desde arriba) */}
-                  <div
-                    data-noexport="true"
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
-                  >
-                    <div className="text-xs text-white/55">
-                      Built by{" "}
-                      <a
-                        href="https://agsolutions.dev"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-white/80 hover:text-white underline underline-offset-4 decoration-white/20 hover:decoration-white/40"
-                      >
-                        AG Solutions
-                      </a>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <a
-                        href="https://agsolutions.dev"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs rounded-xl px-3 py-2 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10"
-                      >
-                        Ver más tools
-                      </a>
-                      <a
-                        href="https://ko-fi.com/abrahamgomez96"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs rounded-xl px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/15"
-                      >
-                        ☕ Ko-fi
-                      </a>
-                    </div>
-                  </div>
                 </div>
 
-                {/* ✅ Compact spacing (menos “form largo”) */}
                 <div className="mt-4 space-y-3">
-                  {/* ✅ Identidad (colapsable) */}
                   <details
                     open
                     className="group rounded-2xl border border-white/10 bg-white/5"
@@ -297,7 +442,6 @@ export default function Page() {
                     </div>
                   </details>
 
-                  {/* ✅ Fondo de pantalla (colapsable, cerrado por defecto) */}
                   {platform === "whatsapp" ? (
                     <details className="group rounded-2xl border border-white/10 bg-white/5">
                       <summary className="cursor-pointer list-none select-none p-4">
@@ -363,7 +507,6 @@ export default function Page() {
                     </details>
                   ) : null}
 
-                  {/* ✅ Mensajes (bloque dominante) */}
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3 ring-1 ring-white/5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -373,7 +516,6 @@ export default function Page() {
                         </div>
                       </div>
 
-                      {/* hint compacto */}
                       <span className="text-[11px] text-white/35 hidden md:inline">
                         Edit → Preview
                       </span>
@@ -390,7 +532,6 @@ export default function Page() {
                     />
                   </div>
 
-                  {/* Actions */}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setMessages([])}
@@ -406,7 +547,6 @@ export default function Page() {
                     </button>
                   </div>
 
-                  {/* Export */}
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -415,9 +555,7 @@ export default function Page() {
                           Descarga en alta calidad.
                         </div>
                       </div>
-                      <span className="text-[11px] text-white/35">
-                        PNG • 2x
-                      </span>
+                      <span className="text-[11px] text-white/35">PNG • 2x</span>
                     </div>
 
                     <button
@@ -439,7 +577,6 @@ export default function Page() {
                     </p>
                   </div>
 
-                  {/* ✅ Footer ultra-minimal (ya no "escondido") */}
                   <div
                     data-noexport="true"
                     className="pt-3 border-t border-white/10 space-y-2"
@@ -459,7 +596,6 @@ export default function Page() {
 
             {/* Preview */}
             <section className={cnPreviewSection(tab)}>
-              {/* ✅ FIX: overflow horizontal para mobile + no recortar header */}
               <div className="w-full overflow-x-auto overflow-y-visible overscroll-x-contain px-2">
                 <div ref={previewRef} className="w-max mx-auto">
                   {preview}

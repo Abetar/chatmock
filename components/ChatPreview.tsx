@@ -90,7 +90,7 @@ export function ChatPreview({
   const msHeaderSub = isDark ? "text-white/70" : "text-neutral-700";
   const msIconBlue = isDark ? "text-[#4ea1ff]" : "text-[#1877f2]";
 
-  const headerPad = isWA ? (isIOS ? "px-3 py-2.5" : "px-3 py-3") : "px-3 py-3";
+  const headerPad = isWA ? (isIOS ? "px-3 py-4" : "px-3 py-3") : "px-3 py-3";
 
   // =========================
   // CANVAS BACKGROUNDS
@@ -158,8 +158,8 @@ export function ChatPreview({
     isWA && isIOS
       ? IOS_TWEAKS.rootMaxW
       : isMS
-      ? "max-w-full sm:max-w-[430px]"
-      : "max-w-[430px]"
+        ? "max-w-full sm:max-w-[430px]"
+        : "max-w-[430px]",
   );
 
   function formatDuration(sec: number) {
@@ -187,13 +187,19 @@ export function ChatPreview({
   }
 
   return (
-    <div className={rootClass} data-chat-root>
+    <div
+      className={cn(
+        rootClass,
+        "[-webkit-text-size-adjust:100%] [text-size-adjust:100%]",
+      )}
+      data-chat-root
+    >
       <div
         className={cn(
           frameRadius,
           "w-full overflow-hidden border shadow-[0_12px_50px_rgba(0,0,0,.25)]",
           border,
-          isDark ? "bg-black" : "bg-white"
+          isDark ? "bg-black" : "bg-white",
         )}
       >
         {/* ========================= */}
@@ -202,22 +208,22 @@ export function ChatPreview({
         <div
           className={cn(
             headerPad,
-            "flex items-center gap-3",
+            "flex items-center gap-3 min-w-0", // ✅ FIX iOS: permite truncar bien
             isWA ? waHeaderBg : msHeaderBg,
             isWA
               ? isDark
                 ? ""
                 : "border-b border-neutral-200"
               : isDark
-              ? "border-b border-white/10"
-              : "border-b border-neutral-200"
+                ? "border-b border-white/10"
+                : "border-b border-neutral-200",
           )}
         >
           {/* Back */}
           <button
             className={cn(
               "p-2 -ml-1 rounded-full transition",
-              isWA ? waHeaderIcons : "hover:bg-black/5 dark:hover:bg-white/10"
+              isWA ? waHeaderIcons : "hover:bg-black/5 dark:hover:bg-white/10",
             )}
             aria-label="Back"
             type="button"
@@ -237,8 +243,8 @@ export function ChatPreview({
                     ? "bg-emerald-900/50 text-white/80"
                     : "bg-emerald-100 text-emerald-900"
                   : isDark
-                  ? "bg-white/10 text-white/90"
-                  : "bg-black/10 text-neutral-900"
+                    ? "bg-white/10 text-white/90"
+                    : "bg-black/10 text-neutral-900",
               )}
             >
               {/* ✅ NUEVO: si hay avatarUrl del contacto, úsalo */}
@@ -261,18 +267,20 @@ export function ChatPreview({
                   "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border",
                   isDark
                     ? "bg-[#22c55e] border-black"
-                    : "bg-[#22c55e] border-white"
+                    : "bg-[#22c55e] border-white",
                 )}
               />
             ) : null}
           </div>
 
           {/* Name + sub */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pr-1">
             <div
               className={cn(
                 "font-medium truncate",
-                isWA ? waHeaderText : msHeaderText
+                isWA ? waHeaderText : msHeaderText,
+                // ✅ FIX real: en iOS, leading-tight puede recortar arriba
+                isWA && isIOS ? "leading-[1.15]" : "",
               )}
             >
               {contactName || "Contacto"}
@@ -280,7 +288,7 @@ export function ChatPreview({
             <div
               className={cn(
                 "text-[11px] truncate",
-                isWA ? waHeaderSub : msHeaderSub
+                isWA ? waHeaderSub : msHeaderSub,
               )}
             >
               {isWA ? "en línea" : "Active now"}
@@ -291,7 +299,7 @@ export function ChatPreview({
           <div
             className={cn(
               "flex items-center gap-1",
-              isWA ? waHeaderText : msHeaderText
+              isWA ? waHeaderText : msHeaderText,
             )}
           >
             {isWA ? (
@@ -322,7 +330,7 @@ export function ChatPreview({
               <>
                 <button
                   className={cn(
-                    "p-2 rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
+                    "p-2 rounded-full transition hover:bg-black/5 dark:hover:bg-white/10",
                   )}
                   aria-label="Call"
                   type="button"
@@ -332,7 +340,7 @@ export function ChatPreview({
 
                 <button
                   className={cn(
-                    "p-2 rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
+                    "p-2 rounded-full transition hover:bg-black/5 dark:hover:bg-white/10",
                   )}
                   aria-label="Video"
                   type="button"
@@ -342,7 +350,7 @@ export function ChatPreview({
 
                 <button
                   className={cn(
-                    "p-2 rounded-full transition hover:bg-black/5 dark:hover:bg-white/10"
+                    "p-2 rounded-full transition hover:bg-black/5 dark:hover:bg-white/10",
                   )}
                   aria-label="Info"
                   type="button"
@@ -362,7 +370,7 @@ export function ChatPreview({
           className={cn(
             "relative flex flex-col",
             isWA && isIOS ? IOS_TWEAKS.viewportH : "h-[640px] sm:h-[700px]",
-            isWA ? waCanvasBg : msCanvasBg
+            isWA ? waCanvasBg : msCanvasBg,
           )}
         >
           {/* BACKGROUND */}
@@ -379,7 +387,7 @@ export function ChatPreview({
                   <div
                     className={cn(
                       "absolute inset-0",
-                      isDark ? "bg-black/35" : "bg-white/20"
+                      isDark ? "bg-black/35" : "bg-white/20",
                     )}
                   />
                 </>
@@ -398,10 +406,10 @@ export function ChatPreview({
                 ? cn(
                     IOS_TWEAKS.scrollPx,
                     IOS_TWEAKS.scrollPy,
-                    IOS_TWEAKS.scrollGap
+                    IOS_TWEAKS.scrollGap,
                   )
                 : "px-3 py-4 space-y-2",
-              isMS ? (isDark ? "bg-black" : "bg-white") : ""
+              isMS ? (isDark ? "bg-black" : "bg-white") : "",
             )}
           >
             {messages.map((m) => {
@@ -414,16 +422,16 @@ export function ChatPreview({
                   ? waMeBubble
                   : waThemBubble
                 : isMe
-                ? msMeBubble
-                : msThemBubble;
+                  ? msMeBubble
+                  : msThemBubble;
 
               const timeColor = isWA
                 ? isDark
                   ? "text-white/60"
                   : "text-neutral-600"
                 : isDark
-                ? "text-white/60"
-                : "text-neutral-700";
+                  ? "text-white/60"
+                  : "text-neutral-700";
 
               const showUnplayedDot =
                 !isMe &&
@@ -453,7 +461,7 @@ export function ChatPreview({
                           "h-7 w-7 rounded-full grid place-items-center text-[11px] font-semibold",
                           isDark
                             ? "bg-white/10 text-white/90"
-                            : "bg-black/10 text-neutral-900"
+                            : "bg-black/10 text-neutral-900",
                         )}
                       >
                         {initial}
@@ -467,7 +475,7 @@ export function ChatPreview({
                       "text-[15px] leading-snug shadow-sm",
                       bubblePad,
                       isMe ? bubbleRadiusMe : bubbleRadiusThem,
-                      bubble
+                      bubble,
                     )}
                   >
                     {/* WhatsApp audio */}
@@ -481,7 +489,11 @@ export function ChatPreview({
                         status={(m as any).status}
                         showUnplayedDot={showUnplayedDot}
                         // ✅ NUEVO: avatar por lado
-                        avatarUrl={isMe ? meAvatarUrl ?? null : contactAvatarUrl ?? null}
+                        avatarUrl={
+                          isMe
+                            ? (meAvatarUrl ?? null)
+                            : (contactAvatarUrl ?? null)
+                        }
                       />
                     ) : type === "audio" && isMS ? (
                       /* Messenger audio */
@@ -503,8 +515,8 @@ export function ChatPreview({
                               isMe
                                 ? "bg-white/15"
                                 : isDark
-                                ? "bg-white/10"
-                                : "bg-black/10"
+                                  ? "bg-white/10"
+                                  : "bg-black/10",
                             )}
                           >
                             <Play
@@ -513,8 +525,8 @@ export function ChatPreview({
                                 isMe
                                   ? "text-white"
                                   : isDark
-                                  ? "text-white/90"
-                                  : "text-neutral-800"
+                                    ? "text-white/90"
+                                    : "text-neutral-800",
                               )}
                             />
                           </button>
@@ -529,8 +541,8 @@ export function ChatPreview({
                                     isMe
                                       ? "bg-white/85"
                                       : isDark
-                                      ? "bg-white/40"
-                                      : "bg-black/25"
+                                        ? "bg-white/40"
+                                        : "bg-black/25",
                                   )}
                                   style={{ height: `${h}px` }}
                                 />
@@ -542,8 +554,8 @@ export function ChatPreview({
                                 isMe
                                   ? "text-white/80"
                                   : isDark
-                                  ? "text-white/60"
-                                  : "text-neutral-600"
+                                    ? "text-white/60"
+                                    : "text-neutral-600",
                               )}
                             >
                               {formatDuration(durationSec || 12)}
@@ -556,8 +568,8 @@ export function ChatPreview({
                               isMe
                                 ? "text-white/80"
                                 : isDark
-                                ? "text-white/60"
-                                : "text-neutral-600"
+                                  ? "text-white/60"
+                                  : "text-neutral-600",
                             )}
                           />
                         </div>
@@ -565,7 +577,7 @@ export function ChatPreview({
                         <div
                           className={cn(
                             "mt-1 flex items-center justify-end gap-1 text-[11px]",
-                            timeColor
+                            timeColor,
                           )}
                         >
                           <span>{m.time}</span>
@@ -580,7 +592,7 @@ export function ChatPreview({
                         <div
                           className={cn(
                             "mt-1 flex items-center justify-end gap-1 text-[11px]",
-                            timeColor
+                            timeColor,
                           )}
                         >
                           <span>{m.time}</span>
@@ -594,8 +606,8 @@ export function ChatPreview({
                                     ? "text-sky-300"
                                     : "text-blue-600"
                                   : isDark
-                                  ? "text-white/40"
-                                  : "text-neutral-400"
+                                    ? "text-white/40"
+                                    : "text-neutral-400",
                               )}
                               aria-label="Status"
                             >
@@ -617,7 +629,7 @@ export function ChatPreview({
               "pointer-events-none absolute z-20 bottom-[86px] left-1/2 -translate-x-1/2 text-[10px] px-2 py-1 rounded-full border",
               isDark
                 ? "text-white/35 bg-black/30 border-white/10"
-                : "text-neutral-600 bg-white/80 border-neutral-200"
+                : "text-neutral-600 bg-white/80 border-neutral-200",
             )}
           >
             Simulated chat · Not real
@@ -632,8 +644,8 @@ export function ChatPreview({
                   ? "border-white/10 bg-[#0b141a]/95"
                   : "border-neutral-200 bg-white/90"
                 : isDark
-                ? "border-white/10 bg-black/90"
-                : "border-neutral-200 bg-white/95"
+                  ? "border-white/10 bg-black/90"
+                  : "border-neutral-200 bg-white/95",
             )}
           >
             {isWA ? (
@@ -651,13 +663,13 @@ export function ChatPreview({
                         "flex-1 h-12 rounded-full border flex items-center px-4 gap-3 min-w-0",
                         isDark
                           ? "bg-[#2a2f33]/90 border-white/10"
-                          : "bg-neutral-50 border-neutral-200"
+                          : "bg-neutral-50 border-neutral-200",
                       )}
                     >
                       <button
                         className={cn(
                           "shrink-0",
-                          isDark ? "text-white/70" : "text-neutral-700"
+                          isDark ? "text-white/70" : "text-neutral-700",
                         )}
                         aria-label="Emoji"
                         type="button"
@@ -670,7 +682,7 @@ export function ChatPreview({
                         <span
                           className={cn(
                             "text-sm truncate",
-                            isDark ? "text-white/50" : "text-neutral-500"
+                            isDark ? "text-white/50" : "text-neutral-500",
                           )}
                         >
                           Message
@@ -680,7 +692,7 @@ export function ChatPreview({
                       <div className="ml-auto flex items-center gap-4 shrink-0">
                         <button
                           className={cn(
-                            isDark ? "text-white/70" : "text-neutral-700"
+                            isDark ? "text-white/70" : "text-neutral-700",
                           )}
                           aria-label="Attach"
                           type="button"
@@ -690,7 +702,7 @@ export function ChatPreview({
 
                         <button
                           className={cn(
-                            isDark ? "text-white/70" : "text-neutral-700"
+                            isDark ? "text-white/70" : "text-neutral-700",
                           )}
                           aria-label="Camera"
                           type="button"
@@ -703,7 +715,7 @@ export function ChatPreview({
                     <div
                       className={cn(
                         "h-12 w-12 rounded-full grid place-items-center shrink-0",
-                        isDark ? "bg-[#00a884]" : "bg-[#25d366]"
+                        isDark ? "bg-[#00a884]" : "bg-[#25d366]",
                       )}
                       aria-hidden="true"
                     >
@@ -719,7 +731,7 @@ export function ChatPreview({
                   <button
                     className={cn(
                       "h-10 w-10 rounded-full grid place-items-center shrink-0",
-                      msIconBlue
+                      msIconBlue,
                     )}
                     aria-label="Plus"
                     type="button"
@@ -730,7 +742,7 @@ export function ChatPreview({
                   <button
                     className={cn(
                       "h-10 w-10 rounded-full grid place-items-center shrink-0",
-                      msIconBlue
+                      msIconBlue,
                     )}
                     aria-label="Camera"
                     type="button"
@@ -741,7 +753,7 @@ export function ChatPreview({
                   <button
                     className={cn(
                       "h-10 w-10 rounded-full grid place-items-center shrink-0",
-                      msIconBlue
+                      msIconBlue,
                     )}
                     aria-label="Image"
                     type="button"
@@ -752,7 +764,7 @@ export function ChatPreview({
                   <button
                     className={cn(
                       "h-10 w-10 rounded-full grid place-items-center shrink-0",
-                      msIconBlue
+                      msIconBlue,
                     )}
                     aria-label="Mic"
                     type="button"
@@ -763,13 +775,13 @@ export function ChatPreview({
                   <div
                     className={cn(
                       "flex-1 h-10 rounded-full px-4 flex items-center min-w-[150px] gap-3",
-                      isDark ? "bg-[#1f1f1f]" : "bg-[#f0f2f5]"
+                      isDark ? "bg-[#1f1f1f]" : "bg-[#f0f2f5]",
                     )}
                   >
                     <span
                       className={cn(
                         "text-sm truncate",
-                        isDark ? "text-white/60" : "text-neutral-600"
+                        isDark ? "text-white/60" : "text-neutral-600",
                       )}
                     >
                       Message
@@ -778,7 +790,7 @@ export function ChatPreview({
                     <button
                       className={cn(
                         "ml-auto grid place-items-center shrink-0",
-                        isDark ? "text-white/60" : "text-neutral-600"
+                        isDark ? "text-white/60" : "text-neutral-600",
                       )}
                       aria-label="Emoji"
                       type="button"
@@ -790,7 +802,7 @@ export function ChatPreview({
                   <button
                     className={cn(
                       "h-10 w-10 rounded-full grid place-items-center shrink-0",
-                      msIconBlue
+                      msIconBlue,
                     )}
                     aria-label="Like"
                     type="button"

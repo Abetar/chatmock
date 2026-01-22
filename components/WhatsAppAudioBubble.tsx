@@ -11,7 +11,7 @@ export function WhatsAppAudioBubble({
   time,
   showUnplayedDot,
   status,
-  avatarUrl, // ✅ nuevo (imagen del avatar que corresponda a ESTE mensaje)
+  avatarUrl,
 }: {
   isMe: boolean;
   isDark: boolean;
@@ -20,7 +20,7 @@ export function WhatsAppAudioBubble({
   time: string;
   showUnplayedDot: boolean;
   status?: "sent" | "delivered" | "read";
-  avatarUrl?: string | null; // ✅ nuevo
+  avatarUrl?: string | null;
 }) {
   function formatDuration(sec: number) {
     const m = Math.floor(sec / 60);
@@ -30,9 +30,13 @@ export function WhatsAppAudioBubble({
 
   const timeColor = isDark ? "text-white/60" : "text-neutral-600";
 
+  // ✅ FIX export: usa rgba clásico para que html-to-image lo renderice bien
+  const dotColor = isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.12)";
+  const knobColor = isDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.25)";
+  const unplayedColor = isDark ? "rgba(125,211,252,0.90)" : "rgb(14,165,233)"; // sky-ish
+
   return (
     <div className="px-3 py-2.5">
-      {/* ✅ NO se invierte nada. Mantiene el layout original */}
       <div className="flex items-center min-w-0">
         {/* Avatar */}
         <div className="relative shrink-0">
@@ -58,10 +62,10 @@ export function WhatsAppAudioBubble({
             )}
           </div>
 
-          {/* mic (sin fondo) */}
+          {/* mic */}
           <span
             className={cn(
-              "absolute -bottom-0.5 -right-0.5", // ✅ igual que antes
+              "absolute -bottom-0.5 -right-0.5",
               isDark ? "text-[#53bdeb]" : "text-[#34b7f1]"
             )}
             aria-hidden="true"
@@ -89,11 +93,10 @@ export function WhatsAppAudioBubble({
           <div className="flex flex-col min-w-0 h-[44px]">
             <div className="flex items-center justify-center flex-1 min-w-0">
               <div className="flex items-center w-full min-w-0">
+                {/* ✅ knob */}
                 <span
-                  className={cn(
-                    "h-3 w-3 rounded-full shrink-0",
-                    isDark ? "bg-white/30" : "bg-neutral-900/25"
-                  )}
+                  className="inline-block h-3 w-3 rounded-full shrink-0"
+                  style={{ backgroundColor: knobColor }}
                   aria-hidden="true"
                 />
 
@@ -102,10 +105,8 @@ export function WhatsAppAudioBubble({
                     {Array.from({ length: 24 }).map((_, idx) => (
                       <span
                         key={idx}
-                        className={cn(
-                          "h-[3px] w-[3px] rounded-full",
-                          isDark ? "bg-white/14" : "bg-black/12"
-                        )}
+                        className="inline-block h-[3px] w-[3px] rounded-full"
+                        style={{ backgroundColor: dotColor }} // ✅ FIX
                         aria-hidden="true"
                       />
                     ))}
@@ -127,10 +128,8 @@ export function WhatsAppAudioBubble({
               <div className="flex items-center gap-2 min-w-0">
                 {showUnplayedDot ? (
                   <span
-                    className={cn(
-                      "h-2 w-2 rounded-full shrink-0",
-                      isDark ? "bg-sky-300/90" : "bg-sky-500"
-                    )}
+                    className="inline-block h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: unplayedColor }} // ✅ FIX
                     aria-hidden="true"
                   />
                 ) : null}
