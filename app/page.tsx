@@ -78,64 +78,51 @@ async function waitForImagesToBeReady(root: HTMLElement, timeoutMs = 2500) {
 }
 
 /**
- * ✅ FIX iOS: algunos exporters no soportan colores modernos (oklab/oklch/color-mix).
- * Sanitiza el árbol clonado y reemplaza esos valores por fallback seguro.
+ * ✅ FIX EXPORT: html-to-image / html2canvas suelen fallar con backdrop-filter
+ * (backdrop-blur + fondos con alpha) y se ve “transparente” sobre wallpaper.
+ * Esto SOLO se aplica al CLON (export), no afecta tu UI real.
  */
-function sanitizeUnsupportedColors(root: HTMLElement) {
-  const BAD = /(oklab|oklch|lab|lch|color-mix|color|hwb)\(/i;
+function patchExportTransparency(
+  clone: HTMLElement,
+  opts: { platform: Platform; theme: Theme }
+) {
+  // 1) Quita backdrop-filter en todo el clon (evita transparencias raras)
+  const blurEls = Array.from(
+    clone.querySelectorAll(".backdrop-blur")
+  ) as HTMLElement[];
 
-  // incluye root + todos los hijos
-  const all = [root, ...Array.from(root.querySelectorAll("*"))] as HTMLElement[];
-
-  for (const el of all) {
-    try {
-      const cs = getComputedStyle(el);
-
-      // 1) Variables CSS (Tailwind suele meter oklch/oklab ahí)
-      // Reescribimos vars conflictivas a algo seguro.
-      for (let i = 0; i < cs.length; i++) {
-        const prop = cs[i];
-        if (!prop || prop[0] !== "-" || prop[1] !== "-") continue;
-
-        const v = cs.getPropertyValue(prop);
-        if (v && BAD.test(v)) {
-          // fallback: transparente (no rompe render)
-          el.style.setProperty(prop, "rgba(0,0,0,0)");
-        }
-      }
-
-      // 2) Sombras/filters (a veces traen color-mix/oklab)
-      const boxShadow = cs.boxShadow || "";
-      if (BAD.test(boxShadow)) el.style.boxShadow = "none";
-
-      const textShadow = (cs as any).textShadow || "";
-      if (typeof textShadow === "string" && BAD.test(textShadow)) {
-        (el.style as any).textShadow = "none";
-      }
-
-      const filter = cs.filter || "";
-      if (BAD.test(filter)) el.style.filter = "none";
-
-      // 3) Colores directos (por si alguno viniera en oklab)
-      // Si el computed style ya viene en rgb(), no hacemos nada.
-      const bg = cs.backgroundColor || "";
-      if (BAD.test(bg)) el.style.backgroundColor = "transparent";
-
-      const color = cs.color || "";
-      if (BAD.test(color)) el.style.color = "rgb(255,255,255)";
-
-      const bt = cs.borderTopColor || "";
-      if (BAD.test(bt)) el.style.borderTopColor = "rgba(255,255,255,0.2)";
-      const br = cs.borderRightColor || "";
-      if (BAD.test(br)) el.style.borderRightColor = "rgba(255,255,255,0.2)";
-      const bb = cs.borderBottomColor || "";
-      if (BAD.test(bb)) el.style.borderBottomColor = "rgba(255,255,255,0.2)";
-      const bl = cs.borderLeftColor || "";
-      if (BAD.test(bl)) el.style.borderLeftColor = "rgba(255,255,255,0.2)";
-    } catch {
-      // ignore
-    }
+  for (const el of blurEls) {
+    (el.style as any).backdropFilter = "none";
+    (el.style as any).webkitBackdropFilter = "none";
   }
+
+  // 2) Encuentra la barra del input (la que tiene border-t + backdrop-blur)
+  //    OJO: puede haber más de una. Nos quedamos con la ÚLTIMA dentro del preview.
+  const candidates = Array.from(clone.querySelectorAll("div")) as HTMLDivElement[];
+
+  const bars = candidates.filter(
+    (el) => el.classList.contains("border-t") && el.classList.contains("backdrop-blur")
+  );
+
+  const inputBar = bars[bars.length - 1];
+  if (!inputBar) return;
+
+  // Fondo sólido SIN alpha (para que NO se vea el wallpaper “a través” en export)
+  const { platform, theme } = opts;
+
+  const solidBg =
+    platform === "whatsapp"
+      ? theme === "dark"
+        ? "#0b141a"
+        : "#ffffff"
+      : theme === "dark"
+      ? "#000000"
+      : "#ffffff";
+
+  inputBar.style.background = solidBg;
+  inputBar.style.backgroundColor = solidBg;
+  inputBar.style.backgroundImage = "none";
+  inputBar.style.opacity = "1";
 }
 
 export default function Page() {
@@ -216,8 +203,8 @@ export default function Page() {
     try {
       await waitForImagesToBeReady(clone);
 
-      // ✅ FIX: neutraliza oklab/oklch/color-mix en el clon
-      sanitizeUnsupportedColors(clone);
+      // ✅ FIX: evita input bar “transparente” en export con wallpaper
+      patchExportTransparency(clone, { platform, theme });
 
       // micro repaint iOS
       wrapper.style.transform = "translateZ(0)";
@@ -309,8 +296,8 @@ export default function Page() {
 
       await waitForImagesToBeReady(clone);
 
-      // ✅ FIX: neutraliza oklab/oklch/color-mix en el clon
-      sanitizeUnsupportedColors(clone);
+      // ✅ FIX: evita input bar “transparente” en export con wallpaper
+      patchExportTransparency(clone, { platform, theme });
 
       wrapper.style.transform = "translateZ(0)";
       clone.style.transform = "translateZ(0)";
